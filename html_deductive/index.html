@@ -1,0 +1,755 @@
+<html>
+<head>
+	
+	<script type="text/javascript">
+
+		var STATE_NORMAL = 1;
+		var STATE_IS_EDITING_MATRIX_SYMBOL = 2;
+
+		var SYMBOL_HEART = 1;
+		var SYMBOL_CIRCLE = 2;
+		var SPECIAL_SYMBOL_DELETE = -1;
+		
+		var x = 1;
+		var current_EditI = -1;
+		var current_EditJ = -1;
+		var program_state = STATE_NORMAL;
+
+		var gameSymbols = new Map; // {};		
+		var game_Matrix = new Array(10);
+		for (var i=0;i<10;++i)
+		{
+			game_Matrix[i] = new Array(10);
+		}
+
+		for (var i=0;i<10;++i)
+		{
+			for (var j=0;j<10;++j)
+			{
+				game_Matrix[i][j] = -1;
+			}
+		}
+
+		var EVERY_SYMBOLS_LEN = 8;
+		var COUNT_SYMBOLS = 5;		
+		var PER_ROW = 7;
+		var N = 4; // 5 or 6
+		// * Create a user interface
+
+		function _url_Symbol(index)
+		{
+			if (index == SPECIAL_SYMBOL_DELETE)
+			{
+				return "url('images/symbol_delete.png')";
+			}
+			else 
+			{
+				return "url('images/symbol_" + index + ".png')";
+			}
+		}
+
+		function _onClick_SymbolDict(event)
+		{
+			var divCell = event.target;
+			var symbol_id_str = divCell.getAttribute("symbol_id");
+			var symbol_id = parseInt(symbol_id_str);
+
+			if (gameSymbols[symbol_id] > 0)
+			{
+				// gameSymbols.delete(symbol_id);
+				gameSymbols[symbol_id] = -1;
+				divCell.className = "dict_cell";
+			}
+			else 
+			{
+				gameSymbols[symbol_id] = 1;
+				divCell.className = "dict_cell_selected";
+			}
+
+			// remap
+			renderPanelChooseSymbol();
+		}
+
+		function _onChoose_Symbol_ToGrid(event) 
+		{
+			var div_Choose_Symbol = document.getElementById("div_Choose_Symbol");
+			var divSymbol_Element = event.target;
+			var symbol_id_str = divSymbol_Element.getAttribute("symbol_id");
+			var symbol_id = parseInt(symbol_id_str);
+
+			if (program_state == STATE_IS_EDITING_MATRIX_SYMBOL)
+			{
+				var id = "idMatrix_" + current_EditI + "_" + current_EditJ;
+				var divMatrixCell = document.getElementById(id);
+
+				divMatrixCell.className = "cell";
+				divMatrixCell.style.backgroundImage = symbol_id == SPECIAL_SYMBOL_DELETE ? null : _url_Symbol(symbol_id);
+				
+				div_Choose_Symbol.className = "choose_symbol";
+				game_Matrix[current_EditI][current_EditJ] = symbol_id;
+
+				program_state = STATE_NORMAL;
+			}
+		}
+
+		function _onEditMatrix(event)
+		{
+			if (program_state == STATE_IS_EDITING_MATRIX_SYMBOL) {
+				return;
+			}
+
+			program_state = STATE_IS_EDITING_MATRIX_SYMBOL;
+			var divCell;
+			divCell = event.target;
+			divCell.className = "cell_selected";
+
+			var row_i = divCell.getAttribute("matrix_row");
+			var row_j = divCell.getAttribute("matrix_col");
+
+			// console.log("Address: ", row_i, row_j);
+
+			current_EditI = row_i;
+			current_EditJ = row_j;
+
+			var div_Choose_Symbol = document.getElementById("div_Choose_Symbol");
+			div_Choose_Symbol.style.visibility = "visible";
+			div_Choose_Symbol.className = "choose_symbol_selected";
+
+			return;
+		}
+
+		function _gamesize00(newsize)
+		{
+			N = newsize;
+			var labelGameSize = document.getElementById("labelGameSize");
+			labelGameSize.innerHTML = newsize;
+
+			for (var i=0;i<N;++i)
+			{
+				for (var j=0;j<N;++j)
+				{
+					game_Matrix[i][j] = -1;
+				}
+			}
+
+
+			initNewGame();
+		}
+
+		function renderPanelChooseSymbol()
+		{
+			var div_Choose_Symbol;
+			div_Choose_Symbol = document.getElementById("div_Choose_Symbol");
+			div_Choose_Symbol.innerHTML = "";
+			// div_Choose_Symbol.style.visibility = "hidden";
+			var i = 0;
+			var div_Row = null; 
+			var arrKeys = new Array(); // Object.keys(gameSymbols);
+			// for (key in gameSymbols.keys()) {
+			// 	arrKeys.append(key);
+			// }
+
+			Object.keys(gameSymbols).forEach(function(key) {
+				if (gameSymbols[key] > 0) {
+					arrKeys.push(key);
+				}
+			});
+
+			arrKeys.push(0); // Question Mark
+			arrKeys.push(SPECIAL_SYMBOL_DELETE);
+			arrKeys.sort();
+
+			while (i<arrKeys.length)
+			{
+				if (i % PER_ROW == 0 ) {
+					div_Row = document.createElement('div');
+					div_Row.className = "choose_symbol_row";
+					div_Choose_Symbol.appendChild(div_Row);
+				}
+
+				var symbol_id = arrKeys[i];
+				var divCell = document.createElement('div');
+				// console.log("Map ", arrKeys[i], symbol_id);
+				divCell.className = "cell";
+				divCell.setAttribute("symbol_id", symbol_id);
+
+
+				divCell.style.backgroundImage = _url_Symbol(symbol_id);
+				divCell.addEventListener("click", _onChoose_Symbol_ToGrid);
+				div_Row.appendChild(divCell);
+				i++;
+			}
+		}
+
+		function render_DictSymbolSelect()
+		{
+			var divDictSymbol;
+			divDictSymbol = document.getElementById("divDictSymbol");			
+			divDictSymbol.innerHTML = "";
+			var div_Row = null;
+
+			for (var i = 1; i < EVERY_SYMBOLS_LEN; i++) 
+			{
+				var divCell;
+				divCell = document.createElement('div');
+				divCell.setAttribute("symbol_id", i);
+				divCell.style.backgroundImage = _url_Symbol(i); // "url('images/symbol_" + i + ".png')";
+				divCell.addEventListener("click", _onClick_SymbolDict);
+
+				if (gameSymbols[i] > 0) {
+					divCell.className = "dict_cell_selected";
+				}
+				else {
+					divCell.className = "dict_cell";
+				}
+
+				// alert("add one");
+				divDictSymbol.appendChild(divCell);
+			}
+		}
+
+		function render_GameMatrix()
+		{
+			var div_Matrix = document.getElementById("div_Matrix");
+			div_Matrix.innerHTML = "";	// clear
+
+			for (var i = 0; i < N; i++) 
+			{
+				var div_Row;
+				div_Row = document.createElement('div');
+				div_Row.className = "game_matrix";
+
+				for (var j = 0; j < N; j++) 
+				{
+					var divCell;
+					divCell = document.createElement('div');
+					divCell.id = "idMatrix_" + i + "_" + j;
+					divCell.className = "cell";
+					divCell.setAttribute("matrix_row", i) ;
+					divCell.setAttribute("matrix_col", j);
+					divCell.addEventListener("click", _onEditMatrix);
+					
+					if (game_Matrix[i][j] > 0) {
+						divCell.style.backgroundImage = _url_Symbol(game_Matrix[i][j]);
+					}
+
+					div_Row.appendChild(divCell);
+				}
+				div_Matrix.appendChild(div_Row);
+			}
+		}
+
+		function render_A_Solution(resultO, question__I, question__J, arrSolution, div_Render_)
+		{
+
+			var spanStatus = document.createElement('span');
+
+			if (resultO.code == 0)
+			{
+				spanStatus.innerHTML = "Solution Solved";
+			}
+			else 
+			{
+				var str = "";
+				for (var i=0;i<resultO.arr_Invalid.length;i++) {
+					str += "(" + resultO.arr_Invalid[i].row + "," + resultO.arr_Invalid[i].col + "); ";
+				}
+				spanStatus.innerHTML = "Invalid Solution; Invalid position=" + str;
+			}
+
+			div_Render_.innerHTML = "";
+			div_Render_.appendChild(spanStatus);
+
+			for (var i = 0; i < N; i++) 
+			{
+				var div_Row;
+				div_Row = document.createElement('div');
+				div_Row.className = "game_matrix";
+
+				for (var j = 0; j < N; j++) 
+				{
+					var divCell;
+					divCell = document.createElement('div');
+					divCell.id = "idMatrix_" + i + "_" + j;
+					
+					if (i==question__I && j==question__J) {
+						divCell.className = "cell_marked";
+					}
+					else {
+						divCell.className = "cell";
+					}
+
+					if (resultO.code == 1)
+					{
+						for (var k=0;k<resultO.arr_Invalid.length;k++) {
+							if (resultO.arr_Invalid[k].row == i && resultO.arr_Invalid[k].col ==j) {
+								divCell.className = "cell_invalid";
+							}
+						}
+					}
+					
+					if (arrSolution[i][j] > 0) {
+						divCell.style.backgroundImage = _url_Symbol(arrSolution[i][j]);
+					}
+
+					div_Row.appendChild(divCell);
+				}
+				div_Render_.appendChild(div_Row);
+			}
+		}
+
+		function validate()
+		{
+			var is_OK = true;
+			var str_Err = "";
+			var countQuestion = 0;
+			var arrKeys = new Array(); // Object.keys(gameSymbols);
+			Object.keys(gameSymbols).forEach(function(key) {
+				if (gameSymbols[key] > 0) {
+					arrKeys.push(key);
+				}
+			});
+
+			if (arrKeys.length != N)
+			{
+				str_Err += "Error: Number of symbol must equal Gamesize !!!!!!!!!! ";
+				is_OK = false;
+			}
+
+			for (var i = 0; i < N; i++) {
+				for (var j=0;j<N;j++) {
+					if (game_Matrix[i][j] == 0) {
+						countQuestion++;
+					}
+
+					if (game_Matrix[i][j] > 0 && gameSymbols[game_Matrix[i][j]] <= 0) {
+						str_Err += "Error At (" + i + "," + j + "). Invalid Symbol!!!!!!! ";
+						is_OK = false;
+					}
+				}
+			}
+
+			if (countQuestion != 1)
+			{
+				str_Err += "Only One Question symbol required!";
+				is_OK = false;
+			}
+
+			if (!is_OK)
+			{
+				var labelStatus = document.getElementById("labelStatus");
+				labelStatus.innerHTML = str_Err;
+			}
+			return is_OK;
+		}
+
+
+		function fulfil_sure_cell_(arrGame, n)
+		{
+			// 
+			// E1. Find every Invalid_cell, if Found Exit, else goto E2
+			// E2. Find every new 01_choice cell if Found, go E3, else Exit
+			// E3. Fill every 01_choice cell, go to E1
+			// 
+
+
+			var once_choice_count = 0;
+			var invalid_count = 0;
+			var resultO = { code: 0 };
+
+			do 
+			{
+				once_choice_count = 0;
+				invalid_count = 0;
+
+				var arr_OneChoice = new Array();
+				var arr_Invalid = new Array();
+
+				for (var i=0;i<n;i++)
+				{
+					for (var j=0;j<n;j++)
+					{
+						if (arrGame[i][j] <= 0)
+						{
+							var remain_choice = n;
+							var _single_Check = new Map();
+							// 
+							for (var k=0;k<n;k++) 
+							{
+								if (k != i && arrGame[k][j] > 0)
+								{
+									_single_Check[arrGame[k][j]] = 1;
+								}
+
+								if (k != j && arrGame[i][k] > 0)
+								{
+									_single_Check[arrGame[i][k]] = 1;
+								}
+							}
+
+							Object.keys(_single_Check).forEach(function(k) {
+								if (_single_Check[k]>0) {
+									remain_choice--;
+								}
+							})
+
+							if (remain_choice == 1 && once_choice_count==0) // Select only One
+							{
+								var val = -1;
+								Object.keys(gameSymbols).forEach(function(k) {
+									if (gameSymbols[k]>0) {
+										if (_single_Check[parseInt(k)] > 0) 
+										{
+										}
+										else
+										{
+											val = parseInt(k); 
+										}
+									}
+								});
+
+								if (val > 0)
+								{
+									once_choice_count++;
+									arr_OneChoice.push({ row:i, col:j, value: val});
+								}
+								else 
+								{
+									console.log("ERERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR ", _single_Check, i, j);
+								}
+							}
+							else if (remain_choice == 0) 
+							{
+								arr_Invalid.push({ row: i, col: j});
+								invalid_count++;
+							}
+						}
+					}
+				}
+
+				if (invalid_count > 0)
+				{
+					resultO = { code: 1, arr_Invalid: arr_Invalid};
+				}
+				else if (once_choice_count > 0)
+				{
+					console.log("once_choice_count=", once_choice_count);
+					for (var i=0;i<arr_OneChoice.length;i++)
+					{
+						console.log("Update ",arr_OneChoice[i].row,arr_OneChoice[i].col, arr_OneChoice[i].value);
+						arrGame[arr_OneChoice[i].row][arr_OneChoice[i].col] = arr_OneChoice[i].value;
+					}
+				}
+			} while (once_choice_count > 0 && invalid_count == 0);
+
+			return resultO;
+		}
+
+		//TODO: Here
+		function solve2()
+		{
+			// Rating first
+			// Find the lowest first
+			var arr_Ranking = new Array()
+
+			for (var i=0;i<N;i++)
+			{
+				for (var j=0;j<N;j++)
+				{
+					if (game_Matrix[i][j] <= 0)
+					{
+						var rankObj = { row: i, col: j, available_choices: [], choiceCount: 0 }
+						var _single_Check = new Map();
+						// 
+						for (var k=0;k<N;k++) 
+						{
+							if (k != i && game_Matrix[k][j] > 0)
+							{
+								_single_Check[game_Matrix[k][j]] = 1;
+							}
+
+							if (k != j && game_Matrix[i][k] > 0)
+							{
+								_single_Check[game_Matrix[i][k]] = 1;
+							}
+						}
+
+						rankObj.choiceCount = N - _single_Check.size();
+						Object.keys(gameSymbols).forEach(function(k) {
+							if (_single_Check[k] > 0) {
+							}
+							else {
+								rankObj.available_choices.push(k);
+							}
+						});
+
+						arr_Ranking.push(rankObj);
+					}
+				}
+			}
+
+			arr_Ranking.sort(function(a,b) { a.choiceCount - b.choiceCount });
+			// 
+			
+		}
+
+		function solve()
+		{
+			if (!validate()) {
+				return;
+			}
+
+			var question__I = 0;
+			var question__J = 0;
+
+			for (var i=0;i<N;i++)
+			{
+				for (var j=0;j<N;j++)
+				{
+					if (game_Matrix[i][j] == 0)
+					{
+						question__I = i;
+						question__J = j;
+					}
+				}
+			}
+
+			// Find every available choice for (question__I/J)
+			var arr_Remain_Choice = new Array();
+			var _map_remainChoice = new Map();
+			Object.keys(gameSymbols).forEach(function(k) {
+				if (gameSymbols[k] > 0) {
+					_map_remainChoice[k] = 1;
+				}
+			});
+
+			for (var k=0;k<N;k++)
+			{
+				if (k != question__J && game_Matrix[question__I][k] >0)
+				{
+					_map_remainChoice[game_Matrix[question__I][k]] = 0;
+				}
+
+				if (k != question__I && game_Matrix[k][question__J] > 0)
+				{
+					_map_remainChoice[game_Matrix[k][question__J]] = 0;
+				}
+			}
+
+			Object.keys(_map_remainChoice).forEach(function(k) {
+				if (_map_remainChoice[k] >0) {
+					arr_Remain_Choice.push(k);
+				}
+			});
+
+			var label_Solve_Count;
+			var divSolution;
+
+			divSolution = document.getElementById('divSolution');
+			divSolution.innerHTML = "";
+			label_Solve_Count = document.getElementById('label_Solve_Count');
+			label_Solve_Count.innerHTML = "Solution count = " + arr_Remain_Choice.length;
+
+			if (arr_Remain_Choice.length >0) {
+				for (var ch=0;ch<arr_Remain_Choice.length;ch++) 
+				{
+					arr_Solving = new Array(N);
+					for (var i = 0; i < N; i++) {
+						arr_Solving[i] = new Array(N);
+					}
+
+					for (var i=0;i<N;i++)
+					{
+						for (var j=0;j<N;j++)
+						{
+							arr_Solving[i][j] = game_Matrix[i][j];
+						}
+					}
+
+					console.log("Start new Solution with ", arr_Remain_Choice[ch]);
+					arr_Solving[question__I][question__J] = arr_Remain_Choice[ch];
+					resultO = fulfil_sure_cell_(arr_Solving, N);
+
+					var div01Solution = document.createElement('div');
+					render_A_Solution(resultO, question__I, question__J, arr_Solving, div01Solution);
+					divSolution.appendChild(div01Solution);
+				}
+			}
+		}
+
+		function clearGame()
+		{
+			for (var i=0;i<N;++i)
+			{
+				for (var j=0;j<N;++j)
+				{
+					game_Matrix[i][j] = -1;
+				}
+			}
+
+			render_DictSymbolSelect();
+			renderPanelChooseSymbol();
+			render_GameMatrix();
+		}
+
+		function initNewGame()
+		{
+			// Default Dict symbols
+			gameSymbols.clear();
+			for (var i=1;i<=EVERY_SYMBOLS_LEN;i++)
+			{
+				gameSymbols[i] = i <= N ? 1 : 0;
+			}
+
+			// Empty Array
+			// for (var i=0;i<game_size;++i)
+			// {
+			// 	for (var j=0;j<game_size;++j)
+			// 	{
+			// 		game_Matrix[i][j] = -1;
+			// 	}
+			// }
+
+			render_DictSymbolSelect();
+			renderPanelChooseSymbol();
+			render_GameMatrix();
+		}
+
+		window.onload = function()
+		{
+			initNewGame();
+		}
+	</script>	
+
+	<style type="text/css">
+		.game_matrix_margin {			
+			display: block;
+		}
+
+		.game_matrix {			
+			display: block;
+			padding-right: 10px;
+		}
+
+		.game_matrix .cell {
+			width: 64px;
+			height: 64px;
+			cursor: pointer;
+			border: solid 1px black;
+			display: inline-block;
+		}
+
+		.game_matrix .cell_selected {
+			width: 64px;
+			height: 64px;
+			cursor: pointer;
+			border: solid 3px red;
+			display: inline-block;
+		}
+
+		.game_matrix .cell_marked {
+			width: 64px;
+			height: 64px;
+			cursor: pointer;
+			border: solid 2px blue;
+			display: inline-block;
+		}
+
+		.game_matrix .cell_invalid {
+			width: 64px;
+			height: 64px;
+			cursor: pointer;
+			border: solid 2px red;
+			display: inline-block;
+		}
+
+		.dict_symbol {
+			display: inline-flex;
+		}
+
+		.dict_symbol .dict_cell_selected {
+			border: solid 3px blue;
+			width: 64px;
+			height: 64px;
+		}
+
+		.dict_symbol .dict_cell {
+			width: 64px;
+			height: 64px;
+		}
+
+		.choose_symbol {
+
+		}
+
+		.choose_symbol_selected {
+			border: solid 3px red;
+		}
+
+		.choose_symbol_row {
+			z-index: 9999;
+			display: block;			
+		}
+
+		.choose_symbol_row .cell {			
+			/*position: relative;*/
+			width: 64px;
+			height: 64px;
+			cursor: pointer;
+			display: inline-block;
+		}
+
+		.solution_grid {
+			display: inline-flex;
+		}
+
+		.button_size {
+			width: 100px;
+			height: 40px;
+		}
+	</style>
+
+</head>
+<body>
+
+	<p>
+		<span>Please select symbol dictionary</span>
+	</p>
+	<div id="divDictSymbol" class="dict_symbol">		
+	</div>
+
+	<p>
+		<span>Gamesize: </span>
+		<span id="labelGameSize"></span>
+	</p>
+	<p>
+		<input type="button" value="GameSize=4" onclick="_gamesize00(4)" class="button_size"></input>
+		<input type="button" value="GameSize=5" onclick="_gamesize00(5)" class="button_size"></input>
+		<input type="button" value="GameSize=6" onclick="_gamesize00(6)" class="button_size"></input>
+		<input type="button" value="GameSize=6" onclick="_gamesize00(7)"></input>
+
+	</p>
+
+	<input type="button" value="Start BuildGame" onclick="initNewGame()" class="button_size" ></input>
+	<input type="button" value="Clear" onclick="clearGame()" class="button_size"></input>
+	<input type="button" value="Solve" onclick="solve()" class="button_size"></input>
+
+	<p>
+		<span>Program Status:</span>
+		<span id="labelStatus">OK</span>
+	</p>
+	<div id="div_Matrix" class="game_matrix_margin">
+	</div>
+	<br/>
+	<div id="div_Choose_Symbol" class="choose_symbol" >
+	</div>	
+	<p>
+		<span>Solutions COUNT:</span>
+		<span id="label_Solve_Count"></span>
+	</p>
+
+	<div id="divSolution" >
+	</div>
+
+</body>
+</html>
