@@ -4,6 +4,7 @@ README
 We solve deductive logical thinking test.
 
 This is a picture of a test.
+
 ![Deductive Logical Thinking Test](https://github.com/spidervn/deductive_logical_solving/blob/master/PROBLEM.png)
 
 The solution is a web-based application. It supports up to 6x6 matrix game.
